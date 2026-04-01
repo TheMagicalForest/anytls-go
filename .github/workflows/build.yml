@@ -5,20 +5,15 @@ on:
     branches:
       - main
       - develop
-  pull_request:
-    branches:
-      - main
-      - develop
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v4
@@ -31,16 +26,20 @@ jobs:
       - name: Run go vet
         run: go vet ./...
 
-      - name: Build
-        run: |
-          mkdir -p output
-          go build -o output/anytls ./cmd/...
-
       - name: Run tests
         run: go test -race ./...
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          version: latest
+          args: release --snapshot --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: anytls-${{ matrix.os }}
-          path: output/
+          name: anytls-binaries
+          path: dist/
+          retention-days: 7
